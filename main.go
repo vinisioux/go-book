@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	fmt.Println("Running API")
+	fmt.Println("Server running")
 
 	r := router.Generate()
 
