@@ -2,15 +2,17 @@ package main
 
 import (
 	"fmt"
+	"go-book-api/src/config"
 	"go-book-api/src/router"
 	"log"
 	"net/http"
 )
 
 func main() {
-	fmt.Println("Server running")
+	config.LoadConfigs()
 
 	r := router.Generate()
 
-	log.Fatal(http.ListenAndServe(":5000", r))
+	fmt.Printf("Server running on port: %d\n", config.Port)
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r))
 }
