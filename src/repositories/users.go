@@ -2,6 +2,7 @@ package repositories
 
 import (
 	"database/sql"
+	"fmt"
 	"go-book-api/src/models"
 )
 
@@ -25,4 +26,66 @@ func (repository users) Create(user models.User) (uint, error) {
 	}
 
 	return userId, nil
+}
+
+func (repository users) Find(content string) ([]models.User, error) {
+	content = fmt.Sprintf("%%%s%%", content) // %content%
+
+	rows, err := repository.db.Query(
+		"select id, name, nickname, email, created_at from users where name LIKE $1 or nickname LIKE $1",
+		content,
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	var users []models.User
+
+	for rows.Next() {
+		var user models.User
+
+		if err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Nickname,
+			&user.Email,
+			&user.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (repository users) FindById(id uint64) (models.User, error) {
+	rows, err := repository.db.Query(
+		"select id, name, nickname, email, created_at from users where id = $1",
+		id,
+	)
+	if err != nil {
+		return models.User{}, err
+	}
+	defer rows.Close()
+
+	var user models.User
+
+	if rows.Next() {
+		if err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Nickname,
+			&user.Email,
+			&user.CreatedAt,
+		); err != nil {
+			return models.User{}, err
+		}
+	}
+
+	return user, nil
 }
