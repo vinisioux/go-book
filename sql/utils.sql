@@ -1,5 +1,11 @@
-CREATE DATABASE IF NOT EXISTS gobook;
-USE gobook;
+DO $$ 
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'gobook') THEN
+    CREATE DATABASE gobook;
+  END IF;
+END $$;
+
+\c gobook;
 
 DROP TABLE IF EXISTS users;
 
