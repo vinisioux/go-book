@@ -14,6 +14,6 @@ CREATE TABLE users(
   name varchar(40) not null,
   nickname varchar(20) not null unique,
   email varchar(50) not null unique,
-  password varchar(40) not null,
+  password varchar(150) not null,
   created_at timestamp default current_timestamp
 );
