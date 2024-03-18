@@ -98,7 +98,6 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.JSON(w, http.StatusOK, user)
-
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
