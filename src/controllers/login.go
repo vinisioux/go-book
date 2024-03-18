@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"go-book-api/src/auth"
 	"go-book-api/src/database"
 	"go-book-api/src/models"
 	"go-book-api/src/repositories"
@@ -43,5 +44,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte("user logged in"))
+	token, _ := auth.CreateToken(userFound.ID)
+
+	w.Write([]byte(token))
 }
