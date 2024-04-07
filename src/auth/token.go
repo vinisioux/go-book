@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go-book-api/src/config"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -35,6 +36,26 @@ func ValidateToken(r *http.Request) error {
 	}
 
 	return errors.New("invalid token")
+}
+
+func GetUserID(r *http.Request) (uint64, error) {
+	tokenString := getToken(r)
+	token, err := jwt.Parse(tokenString, getVerificationKey)
+
+	if err != nil {
+		return 0, err
+	}
+
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		userId, err := strconv.ParseUint(fmt.Sprintf("%.0f", claims["userId"]), 10, 64)
+		if err != nil {
+			return 0, err
+		}
+
+		return userId, nil
+	}
+
+	return 0, errors.New("invalid token")
 }
 
 func getToken(r *http.Request) string {
