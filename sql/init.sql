@@ -1,3 +1,4 @@
+-- Active: 1710614295246@@127.0.0.1@5432@gobook
 DO $$ 
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_database WHERE datname = 'gobook') THEN
@@ -7,6 +8,7 @@ END $$;
 
 \c gobook;
 
+DROP TABLE IF EXISTS followers;
 DROP TABLE IF EXISTS users;
 
 CREATE TABLE users(
@@ -16,4 +18,12 @@ CREATE TABLE users(
   email varchar(50) not null unique,
   password varchar(150) not null,
   created_at timestamp default current_timestamp
+);
+
+CREATE TABLE followers(
+  user_id int not null,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  follower_id int not null,
+  FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+  PRIMARY KEY (user_id, follower_id)
 );
