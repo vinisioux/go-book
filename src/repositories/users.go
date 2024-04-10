@@ -155,3 +155,87 @@ func (repository users) Follow(userId, followerId uint64) error {
 
 	return nil
 }
+
+func (repository users) Unfollow(userId, followerId uint64) error {
+	statement, err := repository.db.Prepare(
+		"delete from followers where user_id = $1 and follower_id = $2",
+	)
+	if err != nil {
+		return err
+	}
+	defer statement.Close()
+
+	if _, err = statement.Exec(userId, followerId); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (repository users) GetFollowers(userId uint64) ([]models.User, error) {
+	rows, err := repository.db.Query(`
+		select
+			u.id, u.name, u.nickname, u.email, u.created_at
+		from users u inner join followers f 
+		on u.id = f.follower_id
+		where f.user_id = $1
+	`, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+
+	for rows.Next() {
+		var user models.User
+
+		if err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Nickname,
+			&user.Email,
+			&user.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
+
+func (repository users) GetFollowing(userId uint64) ([]models.User, error) {
+	rows, err := repository.db.Query(`
+		select
+			u.id, u.name, u.nickname, u.email, u.created_at
+		from users u inner join followers f 
+		on u.id = f.user_id
+		where f.follower_id = $1
+	`, userId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []models.User
+
+	for rows.Next() {
+		var user models.User
+
+		if err = rows.Scan(
+			&user.ID,
+			&user.Name,
+			&user.Nickname,
+			&user.Email,
+			&user.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+
+		users = append(users, user)
+	}
+
+	return users, nil
+}
