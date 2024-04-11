@@ -8,6 +8,7 @@ import (
 	"go-book-api/src/models"
 	"go-book-api/src/repositories"
 	"go-book-api/src/responses"
+	"go-book-api/src/security"
 	"io"
 	"net/http"
 	"strconv"
@@ -270,7 +271,7 @@ func GetFollowers(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userId, err := strconv.ParseUint(params["userId"], 10, 64)
 	if err != nil {
-		responses.Err(w, http.StatusUnauthorized, err)
+		responses.Err(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -296,7 +297,7 @@ func GetFollowing(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	userId, err := strconv.ParseUint(params["userId"], 10, 64)
 	if err != nil {
-		responses.Err(w, http.StatusUnauthorized, err)
+		responses.Err(w, http.StatusBadRequest, err)
 		return
 	}
 
@@ -316,4 +317,70 @@ func GetFollowing(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responses.JSON(w, http.StatusOK, users)
+}
+
+func UpdatePassword(w http.ResponseWriter, r *http.Request) {
+	params := mux.Vars(r)
+	userId, err := strconv.ParseUint(params["userId"], 10, 64)
+	if err != nil {
+		responses.Err(w, http.StatusBadRequest, err)
+		return
+	}
+
+	tokenUserId, err := auth.GetUserID(r)
+	if err != nil {
+		responses.Err(w, http.StatusUnauthorized, err)
+		return
+	}
+
+	if tokenUserId != userId {
+		responses.Err(w, http.StatusForbidden, errors.New("cannot update password from another user"))
+		return
+	}
+
+	bodyRequest, err := io.ReadAll(r.Body)
+	if err != nil {
+		responses.Err(w, http.StatusBadRequest, err)
+		return
+	}
+
+	var password models.Password
+
+	if err = json.Unmarshal(bodyRequest, &password); err != nil {
+		responses.Err(w, http.StatusBadRequest, err)
+		return
+	}
+
+	db, err := database.Connect()
+	if err != nil {
+		responses.Err(w, http.StatusInternalServerError, err)
+		return
+	}
+	defer db.Close()
+
+	repository := repositories.NewUserRepository(db)
+
+	storedPassword, err := repository.GetPassword(userId)
+	if err != nil {
+		responses.Err(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err = security.CheckHash(storedPassword, password.CurrentPassword); err != nil {
+		responses.Err(w, http.StatusUnauthorized, errors.New("wrong password"))
+		return
+	}
+
+	hashedPassword, err := security.Hash(password.NewPassword)
+	if err != nil {
+		responses.Err(w, http.StatusBadRequest, err)
+		return
+	}
+
+	if err = repository.UpdatePassword(userId, string(hashedPassword)); err != nil {
+		responses.Err(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	responses.JSON(w, http.StatusNoContent, nil)
 }

@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"go-book-api/src/auth"
 	"go-book-api/src/database"
 	"go-book-api/src/models"
@@ -40,7 +41,7 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err = security.CheckHash(userFound.Password, user.Password); err != nil {
-		responses.Err(w, http.StatusUnauthorized, err)
+		responses.Err(w, http.StatusUnauthorized, errors.New("wrong credentials"))
 		return
 	}
 
