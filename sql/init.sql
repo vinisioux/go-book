@@ -8,6 +8,7 @@ END $$;
 
 \c gobook;
 
+DROP TABLE IF EXISTS posts;
 DROP TABLE IF EXISTS followers;
 DROP TABLE IF EXISTS users;
 
@@ -26,4 +27,14 @@ CREATE TABLE followers(
   follower_id int not null,
   FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
   PRIMARY KEY (user_id, follower_id)
+);
+
+CREATE TABLE posts(
+  id serial PRIMARY KEY,
+  title VARCHAR(50) not null,
+  content VARCHAR(150) not null,
+  author_id int not null,
+  Foreign Key (author_id) REFERENCES users(id) ON DELETE CASCADE,
+  likes int DEFAULT 0,
+  created_at timestamp default current_timestamp
 );
