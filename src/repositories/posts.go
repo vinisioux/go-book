@@ -28,10 +28,19 @@ func (repository Posts) Create(post models.Post) (uint64, error) {
 
 func (repository Posts) GetById(postId uint64) (models.Post, error) {
 	row, err := repository.db.Query(`
-		select p.*, u.nickname
-		from posts p inner join users u
-		on p.author_id = u.id
-		where p.id = $1
+		SELECT 
+			pp.*, 
+			COALESCE(l.likes, 0) AS likes
+		FROM
+			(SELECT p.*, u.nickname 
+			FROM posts p
+			INNER JOIN users u ON p.author_id = u.id
+			WHERE p.id = $1) pp
+		LEFT JOIN
+			(SELECT post_id, COUNT(*) AS likes
+			FROM likes
+			WHERE post_id = $1
+			GROUP BY post_id) l ON pp.id = l.post_id
 	`, postId)
 	if err != nil {
 		return models.Post{}, err
@@ -46,9 +55,9 @@ func (repository Posts) GetById(postId uint64) (models.Post, error) {
 			&post.Title,
 			&post.Content,
 			&post.AuthorId,
-			&post.Likes,
 			&post.CreatedAt,
 			&post.AuthorNickname,
+			&post.Likes,
 		); err != nil {
 			return models.Post{}, err
 		}
@@ -59,14 +68,22 @@ func (repository Posts) GetById(postId uint64) (models.Post, error) {
 
 func (repository Posts) Get(userId uint64) ([]models.Post, error) {
 	rows, err := repository.db.Query(`
-		select distinct p.*, u.nickname
-		from posts p
-		inner join users u
-		on p.author_id = u.id
-		inner join followers f
-		on p.author_id = f.user_id
-		where u.id = $1 or f.follower_id = $1
-		order by p.created_at desc
+		SELECT 
+			pp.*, 
+			COALESCE(l.likes, 0) AS likes
+		FROM
+			(SELECT DISTINCT p.*, u.nickname 
+			FROM posts p
+			INNER JOIN users u ON p.author_id = u.id
+			INNER JOIN followers f ON p.author_id = f.user_id
+			WHERE u.id = $1 OR f.follower_id = $1) pp
+		LEFT JOIN
+			(SELECT post_id, COUNT(*) AS likes
+			FROM likes
+			WHERE user_id = $1
+			GROUP BY post_id) l ON pp.id = l.post_id
+		ORDER BY
+			pp.created_at DESC
 	`, userId)
 	if err != nil {
 		return []models.Post{}, err
@@ -83,9 +100,9 @@ func (repository Posts) Get(userId uint64) ([]models.Post, error) {
 			&post.Title,
 			&post.Content,
 			&post.AuthorId,
-			&post.Likes,
 			&post.CreatedAt,
 			&post.AuthorNickname,
+			&post.Likes,
 		); err != nil {
 			return []models.Post{}, err
 		}
@@ -126,11 +143,20 @@ func (repository Posts) Delete(postId uint64) error {
 
 func (repository Posts) GetByUser(userId uint64) ([]models.Post, error) {
 	rows, err := repository.db.Query(`
-		select p.*, u.nickname
-		from posts p inner join users u
-		on p.author_id = u.id
-		where p.author_id = $1
-		order by p.created_at desc
+		SELECT 
+			pp.*, 
+			COALESCE(l.likes, 0) AS likes
+		FROM
+			(SELECT p.*, u.nickname 
+			FROM posts p
+			INNER JOIN users u ON p.author_id = u.id
+			WHERE p.author_id = $1) pp
+		LEFT JOIN
+			(SELECT post_id, COUNT(*) AS likes
+			FROM likes
+			GROUP BY post_id) l ON pp.id = l.post_id
+		ORDER BY 
+			pp.created_at DESC;
 	`, userId)
 	if err != nil {
 		return []models.Post{}, err
@@ -147,9 +173,9 @@ func (repository Posts) GetByUser(userId uint64) ([]models.Post, error) {
 			&post.Title,
 			&post.Content,
 			&post.AuthorId,
-			&post.Likes,
 			&post.CreatedAt,
 			&post.AuthorNickname,
+			&post.Likes,
 		); err != nil {
 			return []models.Post{}, err
 		}
@@ -160,35 +186,32 @@ func (repository Posts) GetByUser(userId uint64) ([]models.Post, error) {
 	return posts, nil
 }
 
-func (repository Posts) Like(postId uint64) error {
-	statement, err := repository.db.Prepare("update posts set likes = likes + 1 where id = $1")
+func (repository Posts) Like(postId, userId uint64) error {
+	statement, err := repository.db.Prepare(
+		"insert into likes (post_id, user_id) values ($1, $2) on conflict (post_id, user_id) do nothing",
+	)
 	if err != nil {
 		return nil
 	}
 	defer statement.Close()
 
-	if _, err := statement.Exec(postId); err != nil {
+	if _, err := statement.Exec(postId, userId); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (repository Posts) Unlike(postId uint64) error {
-	statement, err := repository.db.Prepare(`
-		update posts set likes =
-		CASE 
-			WHEN likes > 0 THEN likes - 1
-			ELSE 0
-		END
-		where id = $1
-	`)
+func (repository Posts) Unlike(postId, userId uint64) error {
+	statement, err := repository.db.Prepare(
+		"delete from likes where post_id = $1 and user_id = $2",
+	)
 	if err != nil {
 		return nil
 	}
 	defer statement.Close()
 
-	if _, err := statement.Exec(postId); err != nil {
+	if _, err := statement.Exec(postId, userId); err != nil {
 		return err
 	}
 

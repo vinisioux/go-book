@@ -245,6 +245,12 @@ func GetUserPosts(w http.ResponseWriter, r *http.Request) {
 }
 
 func LikePost(w http.ResponseWriter, r *http.Request) {
+	userId, err := auth.GetUserID(r)
+	if err != nil {
+		responses.Err(w, http.StatusUnauthorized, err)
+		return
+	}
+
 	params := mux.Vars(r)
 
 	postId, err := strconv.ParseUint(params["postId"], 10, 64)
@@ -262,7 +268,7 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 
 	repository := repositories.NewPostRepository(db)
 
-	if err = repository.Like(postId); err != nil {
+	if err = repository.Like(postId, userId); err != nil {
 		responses.Err(w, http.StatusInternalServerError, err)
 		return
 	}
@@ -271,6 +277,12 @@ func LikePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func UnlikePost(w http.ResponseWriter, r *http.Request) {
+	userId, err := auth.GetUserID(r)
+	if err != nil {
+		responses.Err(w, http.StatusUnauthorized, err)
+		return
+	}
+
 	params := mux.Vars(r)
 
 	postId, err := strconv.ParseUint(params["postId"], 10, 64)
@@ -288,7 +300,7 @@ func UnlikePost(w http.ResponseWriter, r *http.Request) {
 
 	repository := repositories.NewPostRepository(db)
 
-	if err = repository.Unlike(postId); err != nil {
+	if err = repository.Unlike(postId, userId); err != nil {
 		responses.Err(w, http.StatusInternalServerError, err)
 		return
 	}
